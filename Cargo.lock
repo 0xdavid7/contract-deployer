@@ -179,6 +179,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "contract-deployer"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "colored",
+ "git2",
+ "serde",
+ "tempfile",
+ "tokio",
+ "toml",
+]
+
+[[package]]
 name = "displaydoc"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -218,20 +232,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e13624c2627564efccf4934284bdd98cbaa14e79b0b5a141218e507b3a823456"
 dependencies = [
  "percent-encoding",
-]
-
-[[package]]
-name = "foundry-deploy"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "clap",
- "colored",
- "git2",
- "serde",
- "tempfile",
- "tokio",
- "toml",
 ]
 
 [[package]]
