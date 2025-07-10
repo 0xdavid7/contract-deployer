@@ -23,13 +23,21 @@ path = "src/main.rs"
 anyhow = "1.0.98"
 clap = { version = "4.5.40", features = ["derive"] }
 colored = "3.0.0"
-git2 = "0.20.2"
+# Other dependencies...
+git2 = { version = "0.18", default-features = false, features = [
+    "https",
+    "vendored-openssl",
+] }
 serde = { version = "1.0.219", features = ["derive"] }
 tokio = { version = "1.46.1", features = ["full"] }
 toml = "0.9.0"
 
 [dev-dependencies]
 tempfile = "3.0"
+
+[features]
+default = ["vendored-openssl"]
+vendored-openssl = ["git2/vendored-openssl"]
 
 [profile.release]
 lto = true
