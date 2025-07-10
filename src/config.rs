@@ -66,8 +66,16 @@ network = "sepolia"
 setup_command = "bun install"
 
 [env]
+# Environment files to load (in order, later files override earlier ones)
 load_files = [".env"]
-additional_vars = { TEST_VAR = "test_value" }
+
+# Additional environment variables can be set directly in config
+# These will override variables from files
+[env.vars]
+KEYSTORE_ACCOUNT = "deployer"
+KEYSTORE_PASSWORD = "****"
+BROADCAST_ACCOUNT = "0xaa31349a2eF4A37Dc4Dd742E3b0E32182F524A6A"
+
 
 [networks.sepolia]
 chain_id = 11155111

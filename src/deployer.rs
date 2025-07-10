@@ -396,6 +396,11 @@ setup_command = "echo 'test'"
 [env]
 load_files = [".env"]
 
+[env.vars]
+KEYSTORE_ACCOUNT = "deployer"
+KEYSTORE_PASSWORD = "****"
+BROADCAST_ACCOUNT = "0xaa31349a2eF4A37Dc4Dd742E3b0E32182F524A6A"
+
 [networks.sepolia]
 chain_id = 11155111
 rpc_url = "https://eth-sepolia.g.alchemy.com/v2/test"
