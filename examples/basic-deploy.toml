@@ -1,0 +1,47 @@
+# Basic deployment configuration for a simple smart contract
+# This is the most common configuration for deploying to Ethereum testnets
+
+[project]
+name = "my-smart-contract"
+script = "Deploy"                                               # Will look for script/Deploy.s.sol
+network = "sepolia"                                             # Default network to deploy to
+setup_command = "bun install"                                   # Command to install dependencies
+repo = "git@github.com:scalarorg/scalar-money-contract.git"
+path = "tmp"
+
+[env]
+# Environment files to load (in order, later files override earlier ones)
+load_files = [".env"]
+
+# Additional environment variables can be set directly in config
+# These will override variables from files
+[env.additional_vars]
+
+
+# Network configurations
+[networks.sepolia]
+chain_id = 11155111
+rpc_url = "https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+verify = true                                                       # Verify contract on Etherscan
+
+[networks.mainnet]
+chain_id = 1
+rpc_url = "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+verify = true
+
+[networks.localhost]
+chain_id = 31337
+rpc_url = "http://localhost:8545"
+verify = false                    # Don't verify on local network
+
+# Required environment variables (set in .env file):
+# API_KEY_ETHERSCAN=your_etherscan_api_key
+# ALCHEMY_API_KEY=your_alchemy_api_key
+# KEYSTORE_ACCOUNT=your_keystore_account_name
+# KEYSTORE_PASSWORD=your_keystore_password
+# BROADCAST_ACCOUNT=0x_your_deployer_address
+
+# Usage examples:
+# Deploy to sepolia (default): contract-deployer --config basic-deploy.toml --repo https://github.com/user/contract.git
+# Deploy to mainnet: Update network = "mainnet" in [project] section
+# Deploy locally: Update network = "localhost" in [project] section

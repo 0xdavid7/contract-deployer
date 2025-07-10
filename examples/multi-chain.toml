@@ -1,0 +1,127 @@
+# Multi-chain deployment configuration
+# Supports deployment to multiple networks with different configurations
+
+[project]
+name = "cross-chain-bridge"
+script = "DeployBridge"                        # Custom script name
+network = "sepolia"                            # Default network (change as needed)
+setup_command = "npm install && npm run build" # Complex setup command
+
+[env]
+# Load multiple environment files
+load_files = [".env", ".env.local", ".env.${NETWORK}"]
+
+[env.additional_vars]
+BRIDGE_VERSION = "v2.1.0"
+DEPLOYMENT_SALT = "0x1234567890abcdef"
+
+# Network-specific variables
+MIN_CONFIRMATION_BLOCKS = "12"
+# Ethereum Networks
+[networks.mainnet]
+chain_id = 1
+rpc_url = "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+verify = true
+
+[networks.sepolia]
+chain_id = 11155111
+rpc_url = "https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+verify = true
+
+[networks.goerli]
+chain_id = 5
+rpc_url = "https://eth-goerli.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+verify = true
+
+# Layer 2 Networks
+[networks.polygon]
+chain_id = 137
+rpc_url = "https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+verify = true
+
+[networks.polygon_mumbai]
+chain_id = 80001
+rpc_url = "https://polygon-mumbai.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+verify = true
+
+[networks.arbitrum]
+chain_id = 42161
+rpc_url = "https://arb-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+verify = true
+
+[networks.arbitrum_sepolia]
+chain_id = 421614
+rpc_url = "https://arb-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+verify = true
+
+[networks.optimism]
+chain_id = 10
+rpc_url = "https://opt-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+verify = true
+
+[networks.optimism_sepolia]
+chain_id = 11155420
+rpc_url = "https://opt-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+verify = true
+
+# BSC Networks
+[networks.bsc]
+chain_id = 56
+rpc_url = "https://bsc-dataseed1.binance.org"
+verify = true
+
+[networks.bsc_testnet]
+chain_id = 97
+rpc_url = "https://data-seed-prebsc-1-s1.binance.org:8545"
+verify = true
+
+# Avalanche Networks
+[networks.avalanche]
+chain_id = 43114
+rpc_url = "https://api.avax.network/ext/bc/C/rpc"
+verify = true
+
+[networks.avalanche_fuji]
+chain_id = 43113
+rpc_url = "https://api.avax-test.network/ext/bc/C/rpc"
+verify = true
+
+# Base Networks
+[networks.base]
+chain_id = 8453
+rpc_url = "https://mainnet.base.org"
+verify = true
+
+[networks.base_sepolia]
+chain_id = 84532
+rpc_url = "https://sepolia.base.org"
+verify = true
+
+# Development Network
+[networks.localhost]
+chain_id = 31337
+rpc_url = "http://localhost:8545"
+verify = false
+
+# Custom Network Example
+[networks.custom_l2]
+chain_id = 1337
+rpc_url = "https://rpc.custom-l2.com"
+verify = false
+
+# Required environment variables:
+# API_KEY_ETHERSCAN=your_etherscan_api_key
+# ALCHEMY_API_KEY=your_alchemy_api_key
+# KEYSTORE_ACCOUNT=your_keystore_account_name
+# KEYSTORE_PASSWORD=your_keystore_password
+# BROADCAST_ACCOUNT=0x_your_deployer_address
+
+# Network-specific environment files (optional):
+# .env.mainnet     - Mainnet-specific variables
+# .env.sepolia     - Sepolia-specific variables
+# .env.polygon     - Polygon-specific variables
+
+# Usage examples:
+# Deploy to Polygon: contract-deployer --config multi-chain.toml --repo https://github.com/user/bridge.git
+# Deploy to Arbitrum: Change network = "arbitrum" in [project] section
+# Deploy with custom args: --args "--constructor-args" --args "0x123,1000000"

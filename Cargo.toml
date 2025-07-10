@@ -1,0 +1,38 @@
+[package]
+name = "foundry-deploy"
+version = "1.0.0"
+edition = "2024"
+authors = ["David <0xdavid7@proton.me>"]
+description = "Automated deployment tool for Foundry-based repositories"
+repository = "https://github.com/0xdavid7/foundry-deploy"
+license = "MIT"
+keywords = [
+    "foundry",
+    "ethereum",
+    "deployment",
+    "automation",
+    "smart-contracts",
+]
+categories = ["command-line-utilities", "development-tools"]
+
+[[bin]]
+name = "foundry-deploy"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0.98"
+clap = { version = "4.5.40", features = ["derive"] }
+colored = "3.0.0"
+git2 = "0.20.2"
+serde = { version = "1.0.219", features = ["derive"] }
+tokio = { version = "1.46.1", features = ["full"] }
+toml = "0.9.0"
+
+[dev-dependencies]
+tempfile = "3.0"
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

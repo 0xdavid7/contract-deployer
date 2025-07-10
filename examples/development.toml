@@ -1,0 +1,100 @@
+# Development configuration for local testing and rapid iteration
+# Optimized for fast development cycles with minimal setup
+
+[project]
+name = "dev-contract"
+script = "Deploy"             # Simple deployment script
+network = "localhost"         # Default to local network
+setup_command = "forge build" # Just build, no dependency installation
+
+[env]
+# Load development-specific environment files
+load_files = [".env.local", ".env.development"]
+
+[env.additional_vars]
+BROADCAST_ACCOUNT = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+KEYSTORE_ACCOUNT = "dev"
+KEYSTORE_PASSWORD = "dev"
+ETHERSCAN_API_KEY = "dev_key_not_needed"
+ALCHEMY_API_KEY = "dev_key_not_needed"
+
+GAS_LIMIT = "30000000"
+# Development-friendly defaults
+GAS_PRICE = "1000000000" # 1 gwei
+# Local development networks
+[networks.localhost]
+chain_id = 31337
+rpc_url = "http://localhost:8545"
+verify = false                    # No verification needed locally
+
+[networks.anvil]
+chain_id = 31337
+rpc_url = "http://127.0.0.1:8545"
+verify = false
+
+[networks.hardhat]
+chain_id = 31337
+rpc_url = "http://127.0.0.1:8545"
+verify = false
+
+# Quick testnet for integration testing
+[networks.sepolia_dev]
+chain_id = 11155111
+rpc_url = "https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+verify = false                                                      # Skip verification for faster deployment
+
+# Tenderly fork for advanced testing
+[networks.tenderly_fork]
+chain_id = 1
+rpc_url = "https://rpc.tenderly.co/fork/${TENDERLY_FORK_ID}"
+verify = false
+
+# Local Layer 2 testing
+[networks.local_optimism]
+chain_id = 901
+rpc_url = "http://localhost:9545"
+verify = false
+
+# Fast testnet alternatives
+[networks.ganache]
+chain_id = 1337
+rpc_url = "http://localhost:7545"
+verify = false
+
+# Development environment setup instructions:
+# 
+# 1. Start local network:
+#    anvil --host 0.0.0.0 --port 8545 --chain-id 31337
+#
+# 2. Create .env.local file:
+#    PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+#    MNEMONIC="test test test test test test test test test test test junk"
+#
+# 3. Fund accounts (anvil provides 10 accounts with 10,000 ETH each):
+#    Account #0: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+#    Account #1: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+#    ...
+#
+# 4. Optional: Create keystore for development:
+#    cast wallet new-mnemonic --words 12 > dev-mnemonic.txt
+#    cast wallet import dev --interactive
+#
+# Usage examples:
+# Deploy locally: contract-deployer --config development.toml
+# Deploy from repo: contract-deployer --config development.toml --repo https://github.com/user/contract.git
+# Deploy with constructor args: --args "--constructor-args" --args "1000000,0x123..."
+# Deploy to sepolia for testing: Change network = "sepolia_dev" in [project] section
+
+# Development workflow:
+# 1. Write contract code
+# 2. Deploy locally for initial testing
+# 3. Test contract functionality
+# 4. Deploy to testnet for integration testing
+# 5. Deploy to mainnet using production config
+
+# Useful development commands:
+# Start anvil: anvil --host 0.0.0.0
+# Reset anvil: anvil --host 0.0.0.0 --reset
+# Fork mainnet: anvil --fork-url https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY
+# Check balance: cast balance 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+# Send transaction: cast send --private-key 0xac0974... 0x_contract_address "function()"
