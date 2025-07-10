@@ -1,4 +1,4 @@
-# Installation Guide
+# Installation Guide (v0.0.7)
 
 ## 📦 **Quick Install**
 

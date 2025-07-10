@@ -166,10 +166,26 @@ setup_path() {
             ;;
     esac
     
-    # Check if PATH is already set
-    if grep -q "$BIN_DIR" "$shell_profile" 2>/dev/null; then
-        log "PATH already configured in $shell_profile"
+    # Add to current session
+    export PATH="$BIN_DIR:$PATH"
+    
+    # Check if binary is already in PATH (from any source)
+    if command -v "$BINARY_NAME" >/dev/null 2>&1; then
+        log "✅ $BINARY_NAME is already in PATH"
         return
+    fi
+    
+    # Check if our specific PATH entry already exists in shell profile
+    if [ -f "$shell_profile" ] && grep -q "$BIN_DIR" "$shell_profile" 2>/dev/null; then
+        log "✅ PATH already configured in $shell_profile"
+        warn "⚠️  You may need to restart your terminal or run: source $shell_profile"
+        return
+    fi
+    
+    # Check if shell profile exists, create if it doesn't
+    if [ ! -f "$shell_profile" ]; then
+        touch "$shell_profile"
+        log "Created $shell_profile"
     fi
     
     log "Adding $BIN_DIR to PATH in $shell_profile"
@@ -183,10 +199,8 @@ setup_path() {
         echo "export PATH=\"\$HOME/.contract-deployer/bin:\$PATH\"" >> "$shell_profile"
     fi
     
-    # Also add to current session
-    export PATH="$BIN_DIR:$PATH"
-    
-    log "PATH configured. You may need to restart your terminal or run:"
+    log "✅ PATH configured in $shell_profile"
+    log "You may need to restart your terminal or run:"
     log "  source $shell_profile"
 }
 
@@ -197,7 +211,7 @@ verify_installation() {
     if [ -x "$BIN_DIR/$BINARY_NAME" ]; then
         log "✅ Binary installed successfully at $BIN_DIR/$BINARY_NAME"
         
-        # Check if it's in PATH
+        # Check if it's in PATH and working
         if command -v "$BINARY_NAME" >/dev/null 2>&1; then
             local version=$($BINARY_NAME --version 2>/dev/null || echo "unknown")
             log "✅ $BINARY_NAME is in PATH and working"
