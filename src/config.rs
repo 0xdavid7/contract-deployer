@@ -22,8 +22,8 @@ pub struct ProjectConfig {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct EnvConfig {
-    pub load_files: Vec<String>,
-    pub additional_vars: Option<HashMap<String, String>>,
+    pub vars: HashMap<String, String>,
+    pub load_files: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

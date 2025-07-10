@@ -14,6 +14,14 @@ pub struct ContractDeployer {
     env: Environment,
 }
 
+#[derive(Debug)]
+struct DeploymentContext {
+    /// The working directory where deployment will happen
+    working_directory: String,
+    /// Optional path to cleanup after deployment (for temporary directories)
+    cleanup_path: Option<String>,
+}
+
 impl ContractDeployer {
     pub fn new(config_path: &str) -> Result<Self> {
         let config = DeploymentConfig::from_file(config_path)?;
@@ -23,74 +31,127 @@ impl ContractDeployer {
     }
 
     pub async fn deploy(&mut self, extra_args: &[String]) -> Result<()> {
-        match &self.config.project.repo {
-            Some(url) => {
-                let url_owned = url.to_string();
-                let path = self
-                    .config
-                    .project
-                    .path
-                    .clone()
-                    .unwrap_or("tmp".to_string());
+        let deployment_context = self.prepare_deployment_context().await?;
 
-                let path = path
-                    .trim()
-                    .trim_matches('"')
-                    .trim_matches('\'')
-                    .trim_matches('`');
+        // Execute the deployment workflow
+        self.execute_deployment_workflow(&deployment_context, extra_args)
+            .await?;
 
-                self.deploy_from_repo(&url_owned, path, extra_args).await
-            }
-            None => {
-                let current_dir = std::env::current_dir()?;
-                self.deploy_local(current_dir.to_str().unwrap(), extra_args)
-                    .await
-            }
+        // Cleanup if needed
+        if let Some(cleanup_path) = &deployment_context.cleanup_path {
+            self.cleanup(cleanup_path)?;
         }
-    }
-
-    async fn deploy_from_repo(
-        &mut self,
-        repo_url: &str,
-        path: &str,
-        extra_args: &[String],
-    ) -> Result<()> {
-        let temp_dir = format!("{}/{}", path, self.config.project.name);
-
-        // Clone repository
-        self.clone_repo(repo_url, &temp_dir).await?;
-
-        // Load environment configuration
-        self.env.load_from_config(&self.config.env, &temp_dir)?;
-
-        // Validate required environment variables
-        self.validate_environment()?;
-
-        // Setup project (install dependencies)
-        self.setup_project(&temp_dir).await?;
-
-        // Deploy contract
-        self.deploy_contract(&temp_dir, extra_args).await?;
-
-        // Cleanup
-        fs::remove_dir_all(&temp_dir).context("Failed to cleanup temporary directory")?;
 
         Ok(())
     }
 
-    async fn deploy_local(&mut self, project_dir: &str, extra_args: &[String]) -> Result<()> {
+    /// Prepare the deployment context (clone repo if needed, determine working directory)
+    async fn prepare_deployment_context(&self) -> Result<DeploymentContext> {
+        match &self.config.project.repo {
+            Some(repo_url) => {
+                let work_dir = self.prepare_repo_deployment(repo_url).await?;
+                Ok(DeploymentContext {
+                    working_directory: work_dir.clone(),
+                    cleanup_path: Some(work_dir),
+                })
+            }
+            None => {
+                let current_dir = std::env::current_dir()
+                    .context("Failed to get current directory")?
+                    .to_string_lossy()
+                    .to_string();
+
+                Ok(DeploymentContext {
+                    working_directory: current_dir,
+                    cleanup_path: None,
+                })
+            }
+        }
+    }
+
+    /// Prepare deployment from repository (clone and setup directory)
+    async fn prepare_repo_deployment(&self, repo_url: &str) -> Result<String> {
+        let base_path = self.get_deployment_base_path();
+        let temp_dir = format!("{}/{}", base_path, self.config.project.name);
+
+        println!(
+            "{}",
+            format!("Preparing deployment directory: {}", temp_dir).blue()
+        );
+
+        // Clone repository
+        self.clone_repo(repo_url, &temp_dir).await?;
+
+        Ok(temp_dir)
+    }
+
+    /// Get the base path for deployments
+    fn get_deployment_base_path(&self) -> String {
+        self.config
+            .project
+            .path
+            .as_ref()
+            .map(|p| self.sanitize_path(p))
+            .unwrap_or_else(|| "/tmp".to_string())
+    }
+
+    /// Sanitize path by removing quotes and trimming
+    fn sanitize_path(&self, path: &str) -> String {
+        path.trim()
+            .trim_matches('"')
+            .trim_matches('\'')
+            .trim_matches('`')
+            .to_string()
+    }
+
+    /// Execute the main deployment workflow
+    async fn execute_deployment_workflow(
+        &mut self,
+        context: &DeploymentContext,
+        extra_args: &[String],
+    ) -> Result<()> {
+        println!(
+            "{}",
+            format!("Starting deployment in: {}", context.working_directory).green()
+        );
+
         // Load environment configuration
-        self.env.load_from_config(&self.config.env, project_dir)?;
+        self.load_and_validate_environment()?;
+
+        // Setup project (install dependencies)
+        self.setup_project(&context.working_directory).await?;
+
+        // Deploy contract
+        self.deploy_contract(&context.working_directory, extra_args)
+            .await?;
+
+        Ok(())
+    }
+
+    /// Load environment configuration and validate required variables
+    fn load_and_validate_environment(&mut self) -> Result<()> {
+        println!("{}", "Loading environment configuration...".blue());
+
+        // Load environment configuration
+        self.env.load_from_config(&self.config.env)?;
 
         // Validate required environment variables
         self.validate_environment()?;
 
-        // Setup project (install dependencies)
-        self.setup_project(project_dir).await?;
+        println!(
+            "{}",
+            "Environment validation completed successfully!".green()
+        );
+        Ok(())
+    }
 
-        // Deploy contract
-        self.deploy_contract(project_dir, extra_args).await?;
+    /// Clean up temporary files and directories
+    fn cleanup(&self, cleanup_path: &str) -> Result<()> {
+        println!("{}", format!("Cleaning up: {}", cleanup_path).yellow());
 
+        fs::remove_dir_all(cleanup_path).context("Failed to cleanup temporary directory")?;
+
+        println!("{}", "Cleanup completed successfully!".green());
         Ok(())
     }
 
@@ -239,8 +300,12 @@ impl ContractDeployer {
         println!("{}: {}", "RPC_URL".blue(), network_config.rpc_url);
         println!("{}: {}", "VERIFY".blue(), network_config.verify);
 
-        if let Some(api_key) = self.env.get("API_KEY_ETHERSCAN") {
-            println!("{}: {}", "API_KEY_ETHERSCAN".blue(), api_key);
+        for (key, value) in self.env.get_vars() {
+            if key.contains("API_KEY") {
+                println!("{}: {}", key.blue(), "********".yellow());
+            } else if key.contains("RPC_URL") {
+                println!("{}: {}", key.blue(), value);
+            }
         }
 
         println!("{}", "═══════════════════════════════════════════════════════════════════════════════════════".green());
@@ -249,10 +314,13 @@ impl ContractDeployer {
 
     fn display_command_info(&self, network_config: &NetworkConfig, script_name: &str) {
         let cmd_display = format!(
-            "forge script script/{} --chain-id {} --rpc-url {} --broadcast{}",
+            "forge script script/{} --chain-id {} --rpc-url {} --broadcast --sender {} {}",
             script_name,
             network_config.chain_id,
             self.config.project.network,
+            self.env
+                .get("BROADCAST_ACCOUNT")
+                .unwrap_or(&("".to_string())),
             if network_config.verify {
                 " --verify"
             } else {
@@ -274,40 +342,34 @@ impl ContractDeployer {
     }
 
     async fn execute_forge_command(&self, mut forge_cmd: Command) -> Result<()> {
-        let output = forge_cmd
-            .output()
-            .context("Failed to execute forge script")?;
+        println!("{}", "Executing forge script...".blue());
 
-        if output.status.success() {
-            println!("{}", "Script executed successfully!".green());
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            if !stdout.is_empty() {
-                println!("\nOutput:\n{}", stdout);
-            }
+        // Use spawn + wait instead of output() to see real-time logs
+        let mut child = forge_cmd
+            .stdout(std::process::Stdio::inherit()) // Show stdout in real-time
+            .stderr(std::process::Stdio::inherit()) // Show stderr in real-time
+            .spawn()
+            .context("Failed to start forge script")?;
+
+        let status = child
+            .wait()
+            .context("Failed to wait for forge script completion")?;
+
+        if status.success() {
+            println!("\n{}", "Script executed successfully!".green());
         } else {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            println!("{}", "Script execution failed!".red());
-            if !stdout.is_empty() {
-                println!("stdout: {}", stdout);
+            println!("\n{}", "Script execution failed!".red());
+            if let Some(code) = status.code() {
+                println!("Exit code: {}", code);
             }
-            if !stderr.is_empty() {
-                println!("stderr: {}", stderr);
-            }
-            anyhow::bail!("Script execution failed");
+            anyhow::bail!("Script execution failed with status: {}", status);
         }
 
         Ok(())
     }
 
     fn validate_environment(&self) -> Result<()> {
-        let required_vars = vec![
-            "API_KEY_ETHERSCAN",
-            "ALCHEMY_API_KEY",
-            "KEYSTORE_ACCOUNT",
-            "KEYSTORE_PASSWORD",
-            "BROADCAST_ACCOUNT",
-        ];
+        let required_vars = vec!["KEYSTORE_ACCOUNT", "KEYSTORE_PASSWORD", "BROADCAST_ACCOUNT"];
 
         self.env.validate_required(&required_vars)
     }

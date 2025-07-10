@@ -1,5 +1,6 @@
 use crate::config::EnvConfig;
 use anyhow::{Context, Result};
+use colored::*;
 use std::collections::HashMap;
 use std::env;
 use std::fs;
@@ -17,19 +18,24 @@ impl Environment {
         }
     }
 
-    pub fn load_from_config(&mut self, config: &EnvConfig, project_dir: &str) -> Result<()> {
+    pub fn load_from_config(&mut self, config: &EnvConfig) -> Result<()> {
         // Load environment files
-        for file_path in &config.load_files {
-            let full_path = Path::new(project_dir).join(file_path);
-            if full_path.exists() {
-                self.load_env_file(&full_path)?;
-            }
+        // Load additional variables from config
+        for (key, value) in config.vars.iter() {
+            self.vars.insert(key.clone(), value.clone());
         }
 
-        // Load additional variables from config
-        if let Some(additional_vars) = &config.additional_vars {
-            for (key, value) in additional_vars {
-                self.vars.insert(key.clone(), value.clone());
+        if let Some(load_files) = &config.load_files {
+            for file_path in load_files {
+                let full_path = Path::new(&file_path);
+                if full_path.exists() {
+                    self.load_env_file(full_path)?;
+                } else {
+                    println!(
+                        "Warning: Env file {} does not exist",
+                        full_path.display().to_string().yellow()
+                    );
+                }
             }
         }
 
@@ -99,7 +105,7 @@ impl Environment {
         if !missing.is_empty() {
             anyhow::bail!(
                 "Missing required environment variables: {}",
-                missing.join(", ")
+                missing.join(", ").red()
             );
         }
 
