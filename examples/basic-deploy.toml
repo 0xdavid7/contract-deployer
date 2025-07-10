@@ -4,7 +4,7 @@
 [project]
 name = "scalar-money-contract"
 script = "Deploy"                                               # Will look for script/Deploy.s.sol
-network = "localhost"                                             # Default network to deploy to
+network = "localhost"                                           # Default network to deploy to
 setup_command = "bun install"                                   # Command to install dependencies
 repo = "https://github.com/scalarorg/scalar-money-contract.git"
 path = "tmp"
@@ -14,7 +14,6 @@ path = "tmp"
 load_files = [".env"]
 
 # Additional environment variables can be set directly in config
-# These will override variables from files
 [env.vars]
 KEYSTORE_ACCOUNT = "deployer"
 KEYSTORE_PASSWORD = "****"
