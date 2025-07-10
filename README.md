@@ -4,7 +4,8 @@ A Rust-based CLI tool for deploying smart contracts with TOML configuration file
 
 [![Release](https://img.shields.io/github/v/release/0xdavid7/contract-deployer)](https://github.com/0xdavid7/contract-deployer/releases)
 [![License](https://img.shields.io/github/license/0xdavid7/contract-deployer)](LICENSE)
-[![CI](https://github.com/0xdavid7/contract-deployer/workflows/CI/badge.svg)](https://github.com/0xdavid7/contract-deployer/actions)
+[![CI](https://github.com/0xdavid7/contract-deployer/actions/workflows/ci.yml/badge.svg)](https://github.com/0xdavid7/contract-deployer/actions/workflows/ci.yml)
+[![Issues](https://img.shields.io/github/issues/0xdavid7/contract-deployer)](https://img.shields.io/github/issues/0xdavid7/contract-deployer)
 
 ## ✨ **Features**
 
