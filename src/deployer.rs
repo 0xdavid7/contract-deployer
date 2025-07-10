@@ -181,15 +181,26 @@ impl ContractDeployer {
             return Ok(());
         }
 
-        let output = Command::new(setup_parts[0])
+        let mut child = Command::new(setup_parts[0])
             .args(&setup_parts[1..])
             .current_dir(project_dir)
-            .output()
+            .stdout(std::process::Stdio::inherit()) // Show stdout in real-time
+            .stderr(std::process::Stdio::inherit()) // Show stderr in real-time
+            .spawn()
             .context("Failed to run setup command")?;
 
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            anyhow::bail!("Setup command failed: {}", stderr);
+        let status = child
+            .wait()
+            .context("Failed to wait for setup command completion")?;
+
+        if status.success() {
+            println!("\n{}", "Setup command executed successfully!".green());
+        } else {
+            println!("\n{}", "Setup command execution failed!".red());
+            if let Some(code) = status.code() {
+                println!("Exit code: {}", code);
+            }
+            anyhow::bail!("Setup command execution failed with status: {}", status);
         }
 
         println!("{}", "Project setup completed successfully!".green());
