@@ -2,11 +2,11 @@
 # This is the most common configuration for deploying to Ethereum testnets
 
 [project]
-name = "scalar-money-contract"
-script = "Deploy"                                               # Will look for script/Deploy.s.sol
-network = "localhost"                                           # Default network to deploy to
-setup_command = "bun install"                                   # Command to install dependencies
-repo = "https://github.com/scalarorg/scalar-money-contract.git"
+name = "dev-contract"
+script = "Deploy"                                            # Will look for script/Deploy.s.sol
+network = "localhost"                                        # Default network to deploy to
+setup_command = "bun install"                                # Command to install dependencies
+repo = "https://github.com/<your-username>/dev-contract.git"
 path = "tmp"
 
 [env]
