@@ -294,6 +294,8 @@ impl ContractDeployer {
             forge_cmd.arg("--sender").arg(broadcast_account);
         }
 
+        forge_cmd.arg("--resume");
+
         // Add extra arguments
         for arg in extra_args {
             forge_cmd.arg(arg);
