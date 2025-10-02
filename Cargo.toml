@@ -1,6 +1,6 @@
 [package]
 name = "contract-deployer"
-version = "1.0.0"
+version = "0.0.9"
 edition = "2024"
 authors = ["David <0xdavid7@proton.me>"]
 description = "Automated deployment tool for Foundry-based repositories"
