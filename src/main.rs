@@ -8,15 +8,12 @@ use clap::Parser;
 use cli::Args;
 use deployer::ContractDeployer;
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
     let args = Args::parse();
 
-    let mut deployer = ContractDeployer::new(&args.config)?;
+    let mut deployer = ContractDeployer::new(&args.config, args.skip_confirmation)?;
 
-    let extra_args: Vec<String> = args.args.unwrap_or_default();
-
-    deployer.deploy(&extra_args).await?;
+    deployer.deploy()?;
 
     Ok(())
 }

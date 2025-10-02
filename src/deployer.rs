@@ -12,6 +12,7 @@ use crate::environment::Environment;
 pub struct ContractDeployer {
     config: DeploymentConfig,
     env: Environment,
+    skip_confirmation: bool,
 }
 
 #[derive(Debug)]
@@ -23,19 +24,23 @@ struct DeploymentContext {
 }
 
 impl ContractDeployer {
-    pub fn new(config_path: &str) -> Result<Self> {
+    /// Create a new ContractDeployer with custom skip_confirmation setting (useful for testing)
+    pub fn new(config_path: &str, skip_confirmation: bool) -> Result<Self> {
         let config = DeploymentConfig::from_file(config_path)?;
         let env = Environment::new();
 
-        Ok(ContractDeployer { config, env })
+        Ok(ContractDeployer {
+            config,
+            env,
+            skip_confirmation,
+        })
     }
 
-    pub async fn deploy(&mut self, extra_args: &[String]) -> Result<()> {
-        let deployment_context = self.prepare_deployment_context().await?;
+    pub fn deploy(&mut self) -> Result<()> {
+        let deployment_context = self.prepare_deployment_context()?;
 
         // Execute the deployment workflow
-        self.execute_deployment_workflow(&deployment_context, extra_args)
-            .await?;
+        self.execute_deployment_workflow(&deployment_context)?;
 
         // Cleanup if needed
         if let Some(cleanup_path) = &deployment_context.cleanup_path {
@@ -46,10 +51,10 @@ impl ContractDeployer {
     }
 
     /// Prepare the deployment context (clone repo if needed, determine working directory)
-    async fn prepare_deployment_context(&self) -> Result<DeploymentContext> {
+    fn prepare_deployment_context(&self) -> Result<DeploymentContext> {
         match &self.config.project.repo {
             Some(repo_url) => {
-                let work_dir = self.prepare_repo_deployment(repo_url).await?;
+                let work_dir = self.prepare_repo_deployment(repo_url)?;
                 Ok(DeploymentContext {
                     working_directory: work_dir.clone(),
                     cleanup_path: Some(work_dir),
@@ -70,7 +75,7 @@ impl ContractDeployer {
     }
 
     /// Prepare deployment from repository (clone and setup directory)
-    async fn prepare_repo_deployment(&self, repo_url: &str) -> Result<String> {
+    fn prepare_repo_deployment(&self, repo_url: &str) -> Result<String> {
         let base_path = self.get_deployment_base_path();
         let temp_dir = format!("{}/{}", base_path, self.config.project.name);
 
@@ -80,7 +85,7 @@ impl ContractDeployer {
         );
 
         // Clone repository
-        self.clone_repo(repo_url, &temp_dir).await?;
+        self.clone_repo(repo_url, &temp_dir)?;
 
         Ok(temp_dir)
     }
@@ -105,11 +110,7 @@ impl ContractDeployer {
     }
 
     /// Execute the main deployment workflow
-    async fn execute_deployment_workflow(
-        &mut self,
-        context: &DeploymentContext,
-        extra_args: &[String],
-    ) -> Result<()> {
+    fn execute_deployment_workflow(&mut self, context: &DeploymentContext) -> Result<()> {
         println!(
             "{}",
             format!("Starting deployment in: {}", context.working_directory).green()
@@ -119,11 +120,10 @@ impl ContractDeployer {
         self.load_and_validate_environment()?;
 
         // Setup project (install dependencies)
-        self.setup_project(&context.working_directory).await?;
+        self.setup_project(&context.working_directory)?;
 
         // Deploy contract
-        self.deploy_contract(&context.working_directory, extra_args)
-            .await?;
+        self.deploy_contract(&context.working_directory)?;
 
         Ok(())
     }
@@ -155,7 +155,7 @@ impl ContractDeployer {
         Ok(())
     }
 
-    async fn clone_repo(&self, repo_url: &str, target_dir: &str) -> Result<()> {
+    fn clone_repo(&self, repo_url: &str, target_dir: &str) -> Result<()> {
         println!("{}", "Cloning repository...".blue());
 
         if Path::new(target_dir).exists() {
@@ -168,7 +168,7 @@ impl ContractDeployer {
         Ok(())
     }
 
-    async fn setup_project(&self, project_dir: &str) -> Result<()> {
+    fn setup_project(&self, project_dir: &str) -> Result<()> {
         println!("{}", "Setting up project...".blue());
 
         let setup_parts: Vec<&str> = self
@@ -207,7 +207,7 @@ impl ContractDeployer {
         Ok(())
     }
 
-    async fn deploy_contract(&self, project_dir: &str, extra_args: &[String]) -> Result<()> {
+    fn deploy_contract(&self, project_dir: &str) -> Result<()> {
         // Get network configuration
         let network_config = self
             .config
@@ -234,9 +234,8 @@ impl ContractDeployer {
         );
 
         // Build forge command
-        let mut forge_cmd = self
-            .build_forge_command(&expanded_network_config, &script_name, extra_args)
-            .await?;
+        let mut forge_cmd = self.build_forge_command(&expanded_network_config, &script_name)?;
+
         forge_cmd.current_dir(project_dir);
 
         // Set environment variables for the forge process
@@ -244,8 +243,7 @@ impl ContractDeployer {
             forge_cmd.env(key, value);
         }
 
-        // Display command (without sensitive info)
-        self.display_command_info(&expanded_network_config, &script_name);
+        self.display_command_info(&forge_cmd);
 
         // Ask for confirmation
         if !self.confirm_execution()? {
@@ -254,16 +252,15 @@ impl ContractDeployer {
         }
 
         // Execute the command
-        self.execute_forge_command(forge_cmd).await?;
+        self.execute_forge_command(forge_cmd)?;
 
         Ok(())
     }
 
-    async fn build_forge_command(
+    fn build_forge_command(
         &self,
         network_config: &NetworkConfig,
         script_name: &str,
-        extra_args: &[String],
     ) -> Result<Command> {
         let mut forge_cmd = Command::new("forge");
 
@@ -294,11 +291,11 @@ impl ContractDeployer {
             forge_cmd.arg("--sender").arg(broadcast_account);
         }
 
-        forge_cmd.arg("--resume");
-
         // Add extra arguments
-        for arg in extra_args {
-            forge_cmd.arg(arg);
+        if let Some(args) = &self.config.extra_args {
+            args.iter().for_each(|(key, value)| {
+                forge_cmd.arg(format!("--{}", key)).arg(value);
+            });
         }
 
         Ok(forge_cmd)
@@ -325,25 +322,34 @@ impl ContractDeployer {
         println!();
     }
 
-    fn display_command_info(&self, network_config: &NetworkConfig, script_name: &str) {
-        let cmd_display = format!(
-            "forge script script/{} --chain-id {} --rpc-url {} --broadcast --sender {} {}",
-            script_name,
-            network_config.chain_id,
-            self.config.project.network,
-            self.env
-                .get("BROADCAST_ACCOUNT")
-                .unwrap_or(&("".to_string())),
-            if network_config.verify {
-                " --verify"
-            } else {
-                ""
-            }
+    fn display_command_info(&self, forge_cmd: &Command) {
+        // Display the full command (with sensitive info masked)
+        let masked_cmd = format!(
+            "{}",
+            forge_cmd
+                .get_args()
+                .map(|arg| arg.to_string_lossy())
+                .collect::<Vec<_>>()
+                .join(" ")
         );
-        println!("Executing: {}", cmd_display);
+
+        if let Some(keystore_account) = self.env.get("KEYSTORE_ACCOUNT") {
+            let _ = masked_cmd.replace(keystore_account, "********");
+        }
+
+        if let Some(keystore_password) = self.env.get("KEYSTORE_PASSWORD") {
+            let _ = masked_cmd.replace(keystore_password, "********");
+        }
+
+        println!("\n{}", masked_cmd);
     }
 
     fn confirm_execution(&self) -> Result<bool> {
+        if self.skip_confirmation {
+            println!("Skipping confirmation (auto-confirm enabled)");
+            return Ok(true);
+        }
+
         print!("Continue with script execution? (y/n): ");
         io::stdout().flush()?;
 
@@ -354,7 +360,7 @@ impl ContractDeployer {
         Ok(input == "y" || input == "yes")
     }
 
-    async fn execute_forge_command(&self, mut forge_cmd: Command) -> Result<()> {
+    fn execute_forge_command(&self, mut forge_cmd: Command) -> Result<()> {
         println!("{}", "Executing forge script...".blue());
 
         // Use spawn + wait instead of output() to see real-time logs
@@ -394,12 +400,7 @@ mod tests {
     use std::fs;
     use tempfile::tempdir;
 
-    #[test]
-    fn test_deployer_creation() {
-        let temp_dir = tempdir().unwrap();
-        let config_path = temp_dir.path().join("test_config.toml");
-
-        let config_content = r#"
+    const CONFIG_CONTENT: &str = r#"
 [project]
 name = "test-contract"
 script = "Deploy"
@@ -418,11 +419,49 @@ BROADCAST_ACCOUNT = "0xaa31349a2eF4A37Dc4Dd742E3b0E32182F524A6A"
 chain_id = 11155111
 rpc_url = "https://eth-sepolia.g.alchemy.com/v2/test"
 verify = true
+
+[extra_args]
+gas-limit = "1000000"
+priority-fee = "1000000000"
 "#;
 
-        fs::write(&config_path, config_content).unwrap();
+    const FOUNDRY_CONFIG_CONTENT: &str = r#"
+# Full reference https://github.com/foundry-rs/foundry/tree/master/crates/config
 
-        let deployer = ContractDeployer::new(config_path.to_str().unwrap());
+[profile.default]
+
+[dependencies]
+
+[etherscan]
+sepolia = { key = "${API_KEY_ETHERSCAN}", url = "https://api.etherscan.io/v2/api?chainid=11155111" }
+
+[rpc_endpoints]
+sepolia = "https://ethereum-sepolia-rpc.publicnode.com"
+"#;
+
+    #[test]
+    fn test_deployer_creation() {
+        let temp_dir = tempdir().unwrap();
+        let config_path = temp_dir.path().join("test_config.toml");
+
+        fs::write(&config_path, CONFIG_CONTENT).unwrap();
+
+        let deployer = ContractDeployer::new(config_path.to_str().unwrap(), true);
         assert!(deployer.is_ok());
+    }
+
+    #[test]
+    fn test_deployer_execution() {
+        let temp_dir = tempdir().unwrap();
+        let config_path = temp_dir.path().join("test_config.toml");
+        let foundry_config_path = temp_dir.path().join("foundry.toml");
+
+        fs::write(&config_path, CONFIG_CONTENT).unwrap();
+        fs::write(&foundry_config_path, FOUNDRY_CONFIG_CONTENT).unwrap();
+
+        let deployer = ContractDeployer::new(config_path.to_str().unwrap(), true);
+        assert!(deployer.is_ok());
+        let result = deployer.unwrap().deploy();
+        assert!(result.is_err());
     }
 }
