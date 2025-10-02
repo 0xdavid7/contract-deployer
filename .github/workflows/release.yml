@@ -7,6 +7,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  BIN_NAME: contract-deployer
 
 permissions:
   contents: write
@@ -71,9 +72,8 @@ jobs:
 
       - name: Package binary
         run: |
-          binary_name="contract-deployer"
           target_dir="target/${{ matrix.target }}/release"
-          binary_path="$target_dir/$binary_name"
+          binary_path="$target_dir/${{ env.BIN_NAME }}"
           
           # Double-check binary exists
           if [ ! -f "$binary_path" ]; then
@@ -82,12 +82,12 @@ jobs:
           fi
           
           # Create package directory
-          package_name="$binary_name-${{ github.ref_name }}-${{ matrix.target }}"
+          package_name="${{ env.BIN_NAME }}-${{ github.ref_name }}-${{ matrix.target }}"
           mkdir "$package_name"
           
           # Copy binary
           cp "$binary_path" "$package_name/"
-          chmod +x "$package_name/$binary_name"
+          chmod +x "$package_name/${{ env.BIN_NAME }}"
           
           # Copy configuration examples if they exist
           if [ -d "examples" ]; then
@@ -145,8 +145,8 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            contract-deployer-${{ github.ref_name }}-${{ matrix.target }}.tar.gz
-            contract-deployer-${{ github.ref_name }}-${{ matrix.target }}.tar.gz.sha256
+            ${{ env.BIN_NAME }}-${{ github.ref_name }}-${{ matrix.target }}.tar.gz
+            ${{ env.BIN_NAME }}-${{ github.ref_name }}-${{ matrix.target }}.tar.gz.sha256
           generate_release_notes: true
           draft: false
           prerelease: false
