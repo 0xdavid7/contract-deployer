@@ -72,19 +72,32 @@ jobs:
           if [ -z "$BUMP_TYPE" ]; then
             echo "Determining version bump from commit messages..."
             
-            # Get commit messages since last release
-            COMMIT_MESSAGES=$(git log --pretty=format:"%s" HEAD~10..HEAD)
+            # Get commit messages since last tag (or all commits if no tags exist)
+            LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+            if [ -n "$LAST_TAG" ]; then
+              echo "Getting commits since last tag: $LAST_TAG"
+              COMMIT_MESSAGES=$(git log --pretty=format:"%s" "$LAST_TAG"..HEAD)
+            else
+              echo "No previous tags found, analyzing all commits"
+              COMMIT_MESSAGES=$(git log --pretty=format:"%s")
+            fi
             echo "Recent commit messages:"
             echo "$COMMIT_MESSAGES"
             
-            # Check for breaking changes (major bump)
-            if echo "$COMMIT_MESSAGES" | grep -i "BREAKING CHANGE\|breaking:" > /dev/null; then
-              BUMP_TYPE="major"
-            # Check for features (minor bump)
-            elif echo "$COMMIT_MESSAGES" | grep -E "^feat(\(.+\))?:" > /dev/null; then
-              BUMP_TYPE="minor"
-            # Default to patch bump for fixes and other changes
+            # Analyze commit messages if any exist
+            if [ -n "$COMMIT_MESSAGES" ]; then
+              # Check for breaking changes (major bump)
+              if echo "$COMMIT_MESSAGES" | grep -i "BREAKING CHANGE\|breaking:" > /dev/null; then
+                BUMP_TYPE="major"
+              # Check for features (minor bump)
+              elif echo "$COMMIT_MESSAGES" | grep -E "^feat(\(.+\))?:" > /dev/null; then
+                BUMP_TYPE="minor"
+              # Default to patch bump for fixes and other changes
+              else
+                BUMP_TYPE="patch"
+              fi
             else
+              echo "No commit messages found, defaulting to patch bump"
               BUMP_TYPE="patch"
             fi
           fi
