@@ -19,4 +19,17 @@ pub struct Args {
         help = "Skip confirmation prompt and auto-confirm deployment"
     )]
     pub skip_confirmation: bool,
+
+    /// Script name to run (overrides config file script)
+    #[arg(
+        short('s'),
+        long,
+        value_name = "SCRIPT",
+        help = "Script name to run (e.g., Deploy, ScriptA)"
+    )]
+    pub script: Option<String>,
+
+    /// Network to deploy to (overrides config file network)
+    #[arg(short('n'), long, value_name = "NETWORK", help = "Network to deploy to (e.g., sepolia, mainnet)")]
+    pub network: Option<String>,
 }

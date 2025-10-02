@@ -11,7 +11,12 @@ use deployer::ContractDeployer;
 fn main() -> Result<()> {
     let args = Args::parse();
 
-    let mut deployer = ContractDeployer::new(&args.config, args.skip_confirmation)?;
+    let mut deployer = ContractDeployer::new(
+        &args.config,
+        args.skip_confirmation,
+        args.network,
+        args.script,
+    )?;
 
     deployer.deploy()?;
 

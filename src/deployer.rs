@@ -25,9 +25,22 @@ struct DeploymentContext {
 
 impl ContractDeployer {
     /// Create a new ContractDeployer with custom skip_confirmation setting (useful for testing)
-    pub fn new(config_path: &str, skip_confirmation: bool) -> Result<Self> {
-        let config = DeploymentConfig::from_file(config_path)?;
+    pub fn new(
+        config_path: &str,
+        skip_confirmation: bool,
+        network_override: Option<String>,
+        script_override: Option<String>,
+    ) -> Result<Self> {
+        let mut config = DeploymentConfig::from_file(config_path)?;
         let env = Environment::new();
+
+        if let Some(network) = network_override {
+            config.project.network = network;
+        }
+
+        if let Some(script) = script_override {
+            config.project.script = script;
+        }
 
         Ok(ContractDeployer {
             config,
@@ -446,7 +459,7 @@ sepolia = "https://ethereum-sepolia-rpc.publicnode.com"
 
         fs::write(&config_path, CONFIG_CONTENT).unwrap();
 
-        let deployer = ContractDeployer::new(config_path.to_str().unwrap(), true);
+        let deployer = ContractDeployer::new(config_path.to_str().unwrap(), true, None, None);
         assert!(deployer.is_ok());
     }
 
@@ -459,7 +472,7 @@ sepolia = "https://ethereum-sepolia-rpc.publicnode.com"
         fs::write(&config_path, CONFIG_CONTENT).unwrap();
         fs::write(&foundry_config_path, FOUNDRY_CONFIG_CONTENT).unwrap();
 
-        let deployer = ContractDeployer::new(config_path.to_str().unwrap(), true);
+        let deployer = ContractDeployer::new(config_path.to_str().unwrap(), true, None, None);
         assert!(deployer.is_ok());
         let result = deployer.unwrap().deploy();
         assert!(result.is_err());
