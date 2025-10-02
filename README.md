@@ -21,9 +21,9 @@ A Rust-based CLI tool for deploying smart contracts with TOML configuration file
 ## 🚀 **Quick Start**
 
 ### **Installation**
+#### One-line install (macOS/Linux)
 
 ```bash
-# One-line install (macOS/Linux)
 curl -fsSL https://raw.githubusercontent.com/0xdavid7/contract-deployer/main/install.sh | bash
 ```
 
