@@ -8,6 +8,7 @@ pub struct NetworkConfig {
     pub chain_id: u64,
     pub rpc_url: String,
     pub verify: bool,
+    pub extra_args: Option<HashMap<String, String>>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -31,7 +32,6 @@ pub struct DeploymentConfig {
     pub project: ProjectConfig,
     pub env: EnvConfig,
     pub networks: HashMap<String, NetworkConfig>,
-    pub extra_args: Option<HashMap<String, String>>,
 }
 
 impl DeploymentConfig {
@@ -66,11 +66,6 @@ script = "Deploy"
 network = "sepolia"
 setup_command = "bun install"
 
-[extra_args]
-gas-limit = "1000000"
-priority-fee = "2"
-legacy = ""
-
 [env]
 # Environment files to load (in order, later files override earlier ones)
 load_files = [".env"]
@@ -86,6 +81,11 @@ BROADCAST_ACCOUNT = "0xaa31349a2eF4A37Dc4Dd742E3b0E32182F524A6A"
 chain_id = 11155111
 rpc_url = "https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
 verify = true
+
+[networks.sepolia.extra_args]
+gas-limit = "1000000"
+priority-gas-price = "2"
+legacy = ""
 "#;
 
         let config: DeploymentConfig = toml::from_str(config_content).unwrap();
@@ -95,15 +95,16 @@ verify = true
         assert_eq!(config.get_script_name(), "Deploy.s.sol");
         assert_eq!(config.get_network("sepolia").unwrap().chain_id, 11155111);
 
-        // Test args parsing
-        let args = config.extra_args;
+        // Test args parsing from network config
+        let network = config.get_network("sepolia").unwrap();
+        let args = &network.extra_args;
         if let None = args {
             assert!(false, "args should be Some");
         }
-        let args = args.unwrap();
+        let args = args.as_ref().unwrap();
         let entry1 = args.get("gas-limit");
         assert_eq!(entry1, Some(&"1000000".to_string()));
-        let entry2 = args.get("priority-fee");
+        let entry2 = args.get("priority-gas-price");
         assert_eq!(entry2, Some(&"2".to_string()));
         let entry3 = args.get("legacy");
         assert_eq!(entry3, Some(&"".to_string()));

@@ -1,0 +1,48 @@
+# Example configuration showing network-specific extra_args
+# This demonstrates how different networks can have different forge arguments
+
+[project]
+name = "example-contract"
+script = "Deploy"
+network = "sepolia"
+setup_command = "forge build"
+
+[env]
+load_files = [".env"]
+
+[env.vars]
+KEYSTORE_ACCOUNT = "deployer"
+KEYSTORE_PASSWORD = "****"
+BROADCAST_ACCOUNT = "0xaa31349a2eF4A37Dc4Dd742E3b0E32182F524A6A"
+
+# Sepolia testnet with specific gas settings
+[networks.sepolia]
+chain_id = 11155111
+rpc_url = "https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+verify = true
+
+[networks.sepolia.extra_args]
+gas-limit = "1000000"
+priority-gas-price = "2000000000"  # 2 gwei
+legacy = ""  # Use legacy transaction type
+
+# Mainnet with different gas settings
+[networks.mainnet]
+chain_id = 1
+rpc_url = "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
+verify = true
+
+# Local development with no gas concerns
+[networks.localhost]
+chain_id = 31337
+rpc_url = "http://localhost:8545"
+verify = false
+
+[networks.localhost.extra_args]
+gas-limit = "30000000"  # High gas limit for testing
+gas-price = "1000000000"  # 1 gwei
+
+# Usage:
+# Deploy to sepolia: contract-deployer --config network-specific-args.toml
+# Deploy to mainnet: contract-deployer --config network-specific-args.toml --network mainnet
+# Deploy locally: contract-deployer --config network-specific-args.toml --network localhost
