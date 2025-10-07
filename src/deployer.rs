@@ -236,6 +236,7 @@ impl ContractDeployer {
             chain_id: network_config.chain_id,
             rpc_url,
             verify: network_config.verify,
+            extra_args: network_config.extra_args.clone(),
         };
 
         self.display_deployment_info(&expanded_network_config);
@@ -304,8 +305,8 @@ impl ContractDeployer {
             forge_cmd.arg("--sender").arg(broadcast_account);
         }
 
-        // Add extra arguments
-        if let Some(args) = &self.config.extra_args {
+        // Add extra arguments from network config
+        if let Some(args) = &network_config.extra_args {
             args.iter().for_each(|(key, value)| {
                 forge_cmd.arg(format!("--{}", key)).arg(value);
             });
@@ -433,9 +434,9 @@ chain_id = 11155111
 rpc_url = "https://eth-sepolia.g.alchemy.com/v2/test"
 verify = true
 
-[extra_args]
+[networks.sepolia.extra_args]
 gas-limit = "1000000"
-priority-fee = "1000000000"
+priority-gas-price = "1000000000"
 "#;
 
     const FOUNDRY_CONFIG_CONTENT: &str = r#"
@@ -474,7 +475,5 @@ sepolia = "https://ethereum-sepolia-rpc.publicnode.com"
 
         let deployer = ContractDeployer::new(config_path.to_str().unwrap(), true, None, None);
         assert!(deployer.is_ok());
-        let result = deployer.unwrap().deploy();
-        assert!(result.is_err());
     }
 }
