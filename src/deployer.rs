@@ -284,7 +284,7 @@ impl ContractDeployer {
             .arg("--chain-id")
             .arg(network_config.chain_id.to_string())
             .arg("--rpc-url")
-            .arg(&self.config.project.network)
+            .arg(&network_config.rpc_url)
             .arg("--broadcast");
 
         // Add verification if enabled
@@ -339,7 +339,7 @@ impl ContractDeployer {
     fn display_command_info(&self, forge_cmd: &Command) {
         // Display the full command (with sensitive info masked)
         let masked_cmd = format!(
-            "{}",
+            "forge {}",
             forge_cmd
                 .get_args()
                 .map(|arg| arg.to_string_lossy())
