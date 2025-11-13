@@ -49,97 +49,9 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: Auto-increment version and update Cargo.toml
+      - name: Read version from Cargo.toml
         run: |
-          # Get current version from Cargo.toml
-          CURRENT_VERSION=$(grep "^version = " Cargo.toml | sed 's/version = "\(.*\)"/\1/')
-          echo "Current version: $CURRENT_VERSION"
-          
-          # Parse version components
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
-          echo "Parsed version: MAJOR=$MAJOR, MINOR=$MINOR, PATCH=$PATCH"
-          
-          # Determine version bump type
-          BUMP_TYPE="${{ github.event.inputs.version_bump }}"
-          
-          # If triggered by push (not manual), determine bump type from commit messages
-          if [ -z "$BUMP_TYPE" ]; then
-            echo "Determining version bump from commit messages..."
-            
-            # Get commit messages since last tag (or all commits if no tags exist)
-            LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-            if [ -n "$LAST_TAG" ]; then
-              echo "Getting commits since last tag: $LAST_TAG"
-              COMMIT_MESSAGES=$(git log --pretty=format:"%s" "$LAST_TAG"..HEAD)
-            else
-              echo "No previous tags found, analyzing all commits"
-              COMMIT_MESSAGES=$(git log --pretty=format:"%s")
-            fi
-            echo "Recent commit messages:"
-            echo "$COMMIT_MESSAGES"
-            
-            # Analyze commit messages if any exist
-            if [ -n "$COMMIT_MESSAGES" ]; then
-              # Check for breaking changes (major bump)
-              if echo "$COMMIT_MESSAGES" | grep -i "BREAKING CHANGE\|breaking:" > /dev/null; then
-                BUMP_TYPE="major"
-              # Check for features (minor bump)
-              elif echo "$COMMIT_MESSAGES" | grep -E "^feat(\(.+\))?:" > /dev/null; then
-                BUMP_TYPE="minor"
-              # Default to patch bump for fixes and other changes
-              else
-                BUMP_TYPE="patch"
-              fi
-            else
-              echo "No commit messages found, defaulting to patch bump"
-              BUMP_TYPE="patch"
-            fi
-          fi
-          
-          echo "Version bump type: $BUMP_TYPE"
-          
-          # Calculate new version
-          case $BUMP_TYPE in
-            major)
-              NEW_MAJOR=$((MAJOR + 1))
-              NEW_MINOR=0
-              NEW_PATCH=0
-              ;;
-            minor)
-              NEW_MAJOR=$MAJOR
-              NEW_MINOR=$((MINOR + 1))
-              NEW_PATCH=0
-              ;;
-            patch)
-              NEW_MAJOR=$MAJOR
-              NEW_MINOR=$MINOR
-              NEW_PATCH=$((PATCH + 1))
-              ;;
-            *)
-              echo "Invalid bump type: $BUMP_TYPE"
-              exit 1
-              ;;
-          esac
-          
-          NEW_VERSION="$NEW_MAJOR.$NEW_MINOR.$NEW_PATCH"
-          echo "New version: $NEW_VERSION"
-          
-          # Update Cargo.toml with the new version
-          if [[ "$OSTYPE" == "darwin"* ]]; then
-            # macOS
-            sed -i '' "s/^version = \".*\"/version = \"$NEW_VERSION\"/" Cargo.toml
-          else
-            # Linux
-            sed -i "s/^version = \".*\"/version = \"$NEW_VERSION\"/" Cargo.toml
-          fi
-          
-          # Verify the change
-          echo "Updated Cargo.toml version:"
-          grep "^version = " Cargo.toml
-          
-          # Export version for use in other steps
-          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-          echo "BUMP_TYPE=$BUMP_TYPE" >> $GITHUB_ENV
+          bash scripts/test-version-logic.sh --mode read
 
       - name: Install cross for ARM builds
         if: matrix.target == 'aarch64-unknown-linux-gnu'
@@ -234,8 +146,17 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git tag -a "v${{ env.NEW_VERSION }}" -m "Release v${{ env.NEW_VERSION }} (${{ env.BUMP_TYPE }} bump)"
-          git push origin "v${{ env.NEW_VERSION }}"
+          if git rev-parse -q --verify "refs/tags/v${{ env.NEW_VERSION }}" > /dev/null; then
+            echo "Tag v${{ env.NEW_VERSION }} already exists locally; skipping tag creation."
+          else
+            git tag -a "v${{ env.NEW_VERSION }}" -m "Release v${{ env.NEW_VERSION }} (${{ env.BUMP_TYPE }} bump)"
+          fi
+          # Push tag only if it does not exist remotely
+          if git ls-remote --tags origin "v${{ env.NEW_VERSION }}" | grep -q .; then
+            echo "Tag v${{ env.NEW_VERSION }} already exists on remote; skipping push."
+          else
+            git push origin "v${{ env.NEW_VERSION }}"
+          fi
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -266,3 +187,4 @@ jobs:
             ```
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
