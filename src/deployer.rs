@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use colored::*;
 use git2::Repository;
+use std::collections::HashMap;
 use std::fs;
 use std::io::{self, Write};
 use std::path::Path;
@@ -231,12 +232,20 @@ impl ContractDeployer {
             ))?;
 
         // Expand variables in RPC URL
-        let rpc_url = self.env.expand_variables(&network_config.rpc_url);
+        let expaned_url = self.env.expand_variables(&network_config.rpc_url);
+
+        // Expand any environment variables present in extra_args values (if provided)
+        let expanded_extra_args = network_config.extra_args.as_ref().map(|args| {
+            args.iter()
+                .map(|(k, v)| (k.clone(), self.env.expand_variables(v)))
+                .collect::<HashMap<String, String>>()
+        });
+
         let expanded_network_config = NetworkConfig {
             chain_id: network_config.chain_id,
-            rpc_url,
+            rpc_url: expaned_url,
             verify: network_config.verify,
-            extra_args: network_config.extra_args.clone(),
+            extra_args: expanded_extra_args,
         };
 
         self.display_deployment_info(&expanded_network_config);
@@ -437,6 +446,7 @@ verify = true
 [networks.sepolia.extra_args]
 gas-limit = "1000000"
 priority-gas-price = "1000000000"
+etherscan-api-key = "${API_KEY_ETHERSCAN}"
 "#;
 
     const FOUNDRY_CONFIG_CONTENT: &str = r#"
@@ -474,6 +484,7 @@ sepolia = "https://ethereum-sepolia-rpc.publicnode.com"
         fs::write(&foundry_config_path, FOUNDRY_CONFIG_CONTENT).unwrap();
 
         let deployer = ContractDeployer::new(config_path.to_str().unwrap(), true, None, None);
+
         assert!(deployer.is_ok());
     }
 }
